@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Эльбрус — Практика бойынша есепті қорғау</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0a0a0f;
+      color: #fff;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #canvas-bg {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+    }
+
+    .slide {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      text-align: center;
+      padding: 40px;
+      animation: fadeSlide 0.8s ease forwards;
+    }
+
+    .slide.active { display: flex; }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .slide-number {
+      position: fixed;
+      top: 30px; right: 40px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.4);
+      z-index: 100;
+      letter-spacing: 2px;
+    }
+
+    .tag {
+      font-size: 12px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: #00f0ff;
+      margin-bottom: 16px;
+      opacity: 0.8;
+    }
+
+    h1 {
+      font-size: clamp(30px, 5vw, 64px);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      max-width: 980px;
+      background: linear-gradient(135deg, #fff 40%, #00f0ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    h2 {
+      font-size: clamp(24px, 4vw, 48px);
+      font-weight: 700;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #fff 40%, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    p.desc {
+      font-size: clamp(14px, 2vw, 20px);
+      color: rgba(255,255,255,0.6);
+      max-width: 680px;
+      line-height: 1.7;
+    }
+
+    .cards {
+      display: flex;
+      gap: 20px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(0,240,255,0.2);
+      border-radius: 16px;
+      padding: 24px 28px;
+      width: 180px;
+      backdrop-filter: blur(10px);
+      transition: transform 0.3s, border-color 0.3s;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(0,240,255,0.6);
+    }
+
+    .card .icon { font-size: 32px; margin-bottom: 10px; }
+    .card .label { font-size: 14px; color: rgba(255,255,255,0.7); }
+
+    .pill {
+      display: inline-block;
+      background: rgba(0,240,255,0.1);
+      border: 1px solid rgba(0,240,255,0.3);
+      border-radius: 50px;
+      padding: 8px 20px;
+      font-size: 14px;
+      color: #00f0ff;
+      margin: 6px;
+    }
+
+    /* Nav */
+    .nav {
+      position: fixed;
+      bottom: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 100;
+    }
+
+    .nav button {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #fff;
+      padding: 12px 28px;
+      border-radius: 50px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+      backdrop-filter: blur(10px);
+    }
+
+    .nav button:hover {
+      background: rgba(0,240,255,0.2);
+      border-color: #00f0ff;
+    }
+
+    .dots {
+      display: flex;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .dot.active {
+      background: #00f0ff;
+      transform: scale(1.4);
+    }
+
+    /* Progress bar */
+    .progress {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #00f0ff, #a78bfa);
+      transition: width 0.5s ease;
+      z-index: 200;
+    }
+
+    /* ── Content slide extensions ───────────────────── */
+    .slide.wide {
+      justify-content: flex-start;
+      padding-top: 96px;
+      padding-bottom: 110px;
+      overflow-y: auto;
+    }
+
+    .content-wrap {
+      width: 100%;
+      max-width: 1180px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .row {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .glass {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(0,240,255,0.18);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      text-align: left;
+    }
+
+    .text-card { flex: 1 1 420px; max-width: 520px; padding: 26px 30px; }
+    .text-card h3 { font-size: 19px; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+    .text-card h3 .ic { color: #00f0ff; font-size: 20px; }
+    .text-card p { font-size: 14.5px; line-height: 1.7; color: rgba(255,255,255,0.65); }
+    .text-card.accent { border-color: rgba(167,139,250,0.35); }
+    .text-card.accent h3 .ic { color: #a78bfa; }
+
+    .task-card { flex: 1 1 320px; max-width: 360px; padding: 20px 22px; display: flex; align-items: center; gap: 16px; }
+    .task-card .num { font-size: 30px; font-weight: 800; color: rgba(0,240,255,0.35); font-family: Georgia, serif; flex-shrink: 0; }
+    .task-card p { font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,0.75); }
+
+    .img-card { flex: 1 1 360px; max-width: 480px; padding: 14px 14px 16px; }
+    .img-card img { width: 100%; border-radius: 10px; display: block; border: 1px solid rgba(255,255,255,0.08); }
+    .img-card .cap { margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.45); font-style: italic; text-align: center; }
+    .img-card.small { flex: 1 1 260px; max-width: 300px; }
+
+    .table-card { flex: 1 1 300px; max-width: 340px; padding: 18px 20px; display: flex; gap: 14px; align-items: flex-start; }
+    .table-card .ic-box { width: 38px; height: 38px; border-radius: 10px; background: rgba(0,240,255,0.12); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .table-card b { font-size: 15px; color: #fff; display: block; margin-bottom: 4px; }
+    .table-card span { font-size: 12.5px; color: rgba(255,255,255,0.55); line-height: 1.4; }
+
+    .note-card { width: 100%; max-width: 1100px; padding: 18px 26px; display: flex; gap: 16px; align-items: center; border-color: rgba(167,139,250,0.3); }
+    .note-card .ic { font-size: 22px; color: #a78bfa; flex-shrink: 0; }
+    .note-card p { font-size: 13.5px; color: rgba(255,255,255,0.7); line-height: 1.6; }
+
+    .stat-grid { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-bottom: 26px; }
+    .stat-card { flex: 1 1 140px; max-width: 170px; padding: 22px 10px; text-align: center; }
+    .stat-card .num2 {
+      font-size: 38px; font-weight: 800;
+      background: linear-gradient(135deg, #fff 30%, #00f0ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .stat-card .lbl { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 6px; }
+
+    .check-list { display: flex; flex-direction: column; gap: 12px; max-width: 880px; width: 100%; }
+    .check-item { display: flex; gap: 12px; align-items: flex-start; text-align: left; }
+    .check-item .ic { color: #00f0ff; font-size: 16px; margin-top: 2px; flex-shrink: 0; }
+    .check-item p { font-size: 14px; color: rgba(255,255,255,0.7); line-height: 1.55; }
+
+    .thanks { margin-top: 26px; font-size: 16px; font-style: italic; color: #a78bfa; }
+
+    @media (max-width: 720px) {
+      .slide { padding: 24px 18px; }
+      .nav button { padding: 10px 18px; font-size: 12px; }
+      .slide.wide { padding-top: 80px; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="canvas-bg"></canvas>
+<div class="progress" id="progress"></div>
+<div class="slide-number" id="slideNum">01 / 10</div>
+
+<!-- SLIDES -->
+<div class="slide active" id="slide-1">
+  <div class="tag">Оқу-өндірістік практика · Есепті қорғау</div>
+  <h1>Азаматтардың әкімшілік құқық бұзушылықтарын есепке алу ақпараттық жүйесі</h1>
+  <p class="desc">MySQL дерекқорын басқару жүйесі мен C# Windows Forms технологиясы негізінде әзірленген жүйе.</p>
+  <div style="margin-top:18px;">
+    <span class="pill">MySQL</span>
+    <span class="pill">C# / .NET</span>
+    <span class="pill">Windows Forms</span>
+    <span class="pill">ER-модель</span>
+  </div>
+  <p class="desc" style="margin-top:24px; font-size:14px; opacity:0.85;">Орындаған: <strong style="color:#fff;">Эльбрус</strong> · «М.Х. Дулати атындағы Тараз университеті» · 2026</p>
+</div>
+
+<div class="slide" id="slide-2">
+  <div class="tag">Кіріспе</div>
+  <h2>Өзектілігі мен мақсаты</h2>
+  <div class="content-wrap">
+    <div class="row" style="margin-top:8px;">
+      <div class="glass text-card">
+        <h3><span class="ic">&#9673;</span> Өзектілігі</h3>
+        <p>Көлік құралдарының саны артқан сайын жол ережесін бұзу жағдайлары жиілеп келеді. Айыппұлдарды қағаз жүзінде немесе Excel кестесінде сақтау ақпараттың жоғалуына, қателіктерге және іздеуге кететін уақыттың артуына әкеледі.</p>
+      </div>
+      <div class="glass text-card accent">
+        <h3><span class="ic">&#9673;</span> Мақсаты</h3>
+        <p>MySQL дерекқорын басқару жүйесі мен C# тілін пайдалана отырып, азаматтарға салынған әкімшілік айыппұлдарды есепке алуға арналған толыққанды ақпараттық жүйе әзірлеу және оны іс жүзінде сынақтан өткізу.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="slide wide" id="slide-3">
+  <div class="tag">Жоспар</div>
+  <h2>Орындалған міндеттер</h2>
+  <div class="content-wrap">
+    <div class="row" style="margin-top:10px;">
+      <div class="glass task-card"><span class="num">01</span><p>MySQL Workbench ортасында fine_system дерекқорын және кестелерді құру</p></div>
+      <div class="glass task-card"><span class="num">02</span><p>Кестелер арасында сыртқы кілттер арқылы байланыс орнату</p></div>
+      <div class="glass task-card"><span class="num">03</span><p>Деректерді енгізу және SQL сұрауларын жазып орындау</p></div>
+      <div class="glass task-card"><span class="num">04</span><p>Visual Studio-да C# тілінде Windows Forms қосымшасын әзірлеу</p></div>
+      <div class="glass task-card"><span class="num">05</span><p>Дерекқор мен қосымшаны MySQL Connector/NET арқылы байланыстыру</p></div>
+      <div class="glass task-card"><span class="num">06</span><p>Барлық функциялардың дұрыс жұмыс істеуін тексеру</p></div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" id="slide-4">
+  <div class="tag">Теориялық бөлім</div>
+  <h2>Қолданылған технологиялар</h2>
+  <div class="content-wrap">
+    <div class="row" style="margin-top:8px;">
+      <div class="glass text-card">
+        <h3><span class="ic">&#9638;</span> MySQL</h3>
+        <p>Ашық бастапқы кодты реляциялық дерекқорды басқару жүйесі. Негізгі операторлар: CREATE, INSERT, SELECT, UPDATE, DELETE. Жоғары өнімділік пен сенімділікке ие.</p>
+      </div>
+      <div class="glass text-card accent">
+        <h3><span class="ic">&#9635;</span> C# / .NET (Windows Forms)</h3>
+        <p>Microsoft-тың объектіге бағытталған тілі. MySQL Connector/NET драйвері және параметрленген сұраулар арқылы дерекқормен қауіпсіз байланыс орнатылды.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="slide wide" id="slide-5">
+  <div class="tag">Деректер қоры</div>
+  <h2>Архитектура және ER-диаграмма</h2>
+  <div class="content-wrap">
+    <div class="row" style="margin-top:8px; align-items:flex-start;">
+      <div class="glass img-card" style="flex:1 1 520px; max-width:600px;">
+        <img src="Рисунок1.png" alt="EER diagram">
+        <div class="cap">Сурет 7 — fine_system дерекқорының EER-диаграммасы</div>
+      </div>
+      <div class="row" style="flex:1 1 380px; max-width:440px; flex-direction:column; gap:14px;">
+        <div class="glass table-card"><div class="ic-box">&#9638;</div><div><b>citizens</b><span>Азаматтардың аты-жөні мен идентификаторы</span></div></div>
+        <div class="glass table-card"><div class="ic-box">&#9638;</div><div><b>violations</b><span>Құқық бұзушылық түрлерінің анықтамалығы</span></div></div>
+        <div class="glass table-card"><div class="ic-box">&#9638;</div><div><b>penalties</b><span>Айыппұл сомасы, төлем мәртебесі, FOREIGN KEY байланыстары</span></div></div>
+      </div>
+    </div>
+    <div class="glass note-card" style="margin-top:18px;"><span class="ic">&#10038;</span><p>citizens 1—∞ penalties ∞—1 violations қатынасы орнатылып, ON DELETE CASCADE ережесі енгізілді.</p></div>
+  </div>
+</div>
+
+<div class="slide wide" id="slide-6">
+  <div class="tag">Тәжірибелік жұмыс</div>
+  <h2>Дерекқор мен кестелерді құру</h2>
+  <div class="content-wrap">
+    <div class="row" style="margin-top:8px;">
+      <div class="glass img-card"><img src="Рисунок2.png" alt="fine_system db"><div class="cap">Сурет 2 — fine_system дерекқорын құру</div></div>
+      <div class="glass img-card"><img src="Рисунок3.png" alt="tables"><div class="cap">Сурет 3 — Дерекқорға кестелер құру</div></div>
+    </div>
+    <div class="glass note-card" style="margin-top:18px;"><span class="ic">&#10038;</span><p>Action Output терезесіндегі жасыл белгілер барлық SQL сұраныстарының қателіксіз орындалғанын растайды.</p></div>
+  </div>
+</div>
+
+<div class="slide wide" id="slide-7">
+  <div class="tag">Тәжірибелік жұмыс</div>
+  <h2>Деректерді енгізу және байланыстарды тексеру</h2>
+  <div class="content-wrap">
+    <div class="row" style="margin-top:8px;">
+      <div class="glass img-card small"><img src="Рисунок4.png" alt="citizens"><div class="cap">Сурет 4 — citizens кестесіне жазба қосу</div></div>
+      <div class="glass img-card small"><img src="Рисунок5.png" alt="violations"><div class="cap">Сурет 5 — violations кестесіне жазба қосу</div></div>
+      <div class="glass img-card small"><img src="Рисунок6.png" alt="penalties"><div class="cap">Сурет 6 — penalties кестесіне жазба қосу</div></div>
+    </div>
+    <div class="glass note-card" style="margin-top:18px;"><span class="ic">&#10038;</span><p>penalties.citizen_id &rarr; citizens.id және penalties.violation_id &rarr; violations.id сыртқы кілттері арқылы деректердің тұтастығы қамтамасыз етілді; ON DELETE CASCADE ережесі «жетім» жазбалардың пайда болуына жол бермейді.</p></div>
+  </div>
+</div>
+
+<div class="slide wide" id="slide-8">
+  <div class="tag">Тәжірибелік жұмыс</div>
+  <h2>SQL-сұраныстар арқылы аналитика</h2>
+  <div class="content-wrap">
+    <div class="row" style="margin-top:8px;">
+      <div class="glass img-card small"><img src="Рисунок7.png" alt="filter"><div class="cap">Сурет 9 — Төленбеген айыппұлдар бойынша фильтр</div></div>
+      <div class="glass img-card small"><img src="Рисунок8.png" alt="stats"><div class="cap">Сурет 10 — Жалпы статистика</div></div>
+      <div class="glass img-card small"><img src="Рисунок9.png" alt="order"><div class="cap">Сурет 11 — Сомасы бойынша сұрыптау</div></div>
+      <div class="glass img-card small"><img src="Рисунок10.png" alt="type filter"><div class="cap">Сурет 12 — Бұзушылық түрі бойынша фильтр</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="slide wide" id="slide-9">
+  <div class="tag">Тәжірибелік жұмыс</div>
+  <h2>C# Windows Forms қосымшасы</h2>
+  <div class="content-wrap">
+    <div class="row" style="margin-top:8px;">
+      <div class="glass img-card"><img src="Рисунок11.png" alt="form designer"><div class="cap">Сурет 16 — Form1 интерфейс жобасы</div></div>
+      <div class="glass img-card"><img src="Рисунок12.png" alt="running app"><div class="cap">Сурет 18 — Штрафтар DataGridView-де көрсетілуі</div></div>
+    </div>
+    <div class="glass note-card" style="margin-top:18px;"><span class="ic">&#10038;</span><p>Қосымша азаматтарды қосуға, жаңартуға және жоюға мүмкіндік береді; жою транзакция арқылы орындалып, байланысты штрафтар автоматты түрде өшіріледі.</p></div>
+  </div>
+</div>
+
+<div class="slide wide" id="slide-10">
+  <div class="tag">Қорытынды</div>
+  <h2>Жұмыстың нәтижелері</h2>
+  <div class="content-wrap">
+    <div class="stat-grid" style="margin-top:10px;">
+      <div class="glass stat-card"><div class="num2">3</div><div class="lbl">кесте</div></div>
+      <div class="glass stat-card"><div class="num2">10</div><div class="lbl">азамат</div></div>
+      <div class="glass stat-card"><div class="num2">4</div><div class="lbl">бұзушылық түрі</div></div>
+      <div class="glass stat-card"><div class="num2">10</div><div class="lbl">айыппұл жазбасы</div></div>
+    </div>
+    <div class="check-list">
+      <div class="check-item"><span class="ic">&#10003;</span><p>MySQL Workbench-те реляциялық деректер моделі бойынша дерекқор мен кестелер сәтті жобаланды.</p></div>
+      <div class="check-item"><span class="ic">&#10003;</span><p>Сыртқы кілттер мен ON DELETE CASCADE механизмі деректердің тұтастығын қамтамасыз етті.</p></div>
+      <div class="check-item"><span class="ic">&#10003;</span><p>C# тілінде Windows Forms қосымшасы әзірленіп, MySQL Connector/NET арқылы дерекқормен байланыстырылды.</p></div>
+      <div class="check-item"><span class="ic">&#10003;</span><p>Барлық CRUD операциялары (қосу, жаңарту, жою, іздеу) іс жүзінде сынақтан сәтті өтті.</p></div>
+    </div>
+    <div class="thanks">Назар аударғандарыңызға рахмет!</div>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="nav">
+  <button onclick="changeSlide(-1)">&larr; Артқа</button>
+  <div class="dots" id="dots"></div>
+  <button onclick="changeSlide(1)">Алға &rarr;</button>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────
+const TOTAL = 10;
+let current = 0;
+
+// ─── DOTS ────────────────────────────────────────────
+const dotsEl = document.getElementById('dots');
+for (let i = 0; i < TOTAL; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.onclick = () => goTo(i);
+  dotsEl.appendChild(d);
+}
+
+function goTo(n) {
+  document.getElementById('slide-' + (current + 1)).classList.remove('active');
+  dotsEl.children[current].classList.remove('active');
+  current = (n + TOTAL) % TOTAL;
+  document.getElementById('slide-' + (current + 1)).classList.add('active');
+  dotsEl.children[current].classList.add('active');
+  document.getElementById('slideNum').textContent =
+    String(current + 1).padStart(2, '0') + ' / ' + String(TOTAL).padStart(2, '0');
+  document.getElementById('progress').style.width = ((current + 1) / TOTAL * 100) + '%';
+}
+
+function changeSlide(dir) { goTo(current + dir); }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   changeSlide(-1);
+});
+
+// ─── 3D CANVAS BACKGROUND ────────────────────────────
+const canvas = document.getElementById('canvas-bg');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Particles
+const PARTICLE_COUNT = 120;
+const particles = [];
+
+class Particle {
+  constructor() { this.reset(true); }
+  reset(init = false) {
+    this.x = Math.random() * canvas.width;
+    this.y = init ? Math.random() * canvas.height : canvas.height + 10;
+    this.z = Math.random() * 2 + 0.5;          // depth
+    this.vx = (Math.random() - 0.5) * 0.4;
+    this.vy = -(Math.random() * 0.6 + 0.2) * this.z;
+    this.r  = Math.random() * 2 + 0.5;
+    this.alpha = Math.random() * 0.6 + 0.2;
+    this.color = Math.random() > 0.5 ? '0,240,255' : '167,139,250';
+    this.pulse = Math.random() * Math.PI * 2;
+  }
+  update() {
+    this.pulse += 0.02;
+    this.x += this.vx;
+    this.y += this.vy;
+    if (this.y < -10) this.reset();
+  }
+  draw() {
+    const a = this.alpha * (0.7 + 0.3 * Math.sin(this.pulse));
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r * this.z, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${this.color},${a})`;
+    ctx.fill();
+  }
+}
+
+for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(new Particle());
+
+// Lines grid (floating 3D-ish grid)
+const grid = { cols: 12, rows: 8, pts: [] };
+for (let r = 0; r <= grid.rows; r++)
+  for (let c = 0; c <= grid.cols; c++)
+    grid.pts.push({
+      bx: (c / grid.cols) * canvas.width,
+      by: (r / grid.rows) * canvas.height,
+      ox: (Math.random() - 0.5) * 40,
+      oy: (Math.random() - 0.5) * 40,
+      phase: Math.random() * Math.PI * 2,
+      speed: Math.random() * 0.008 + 0.003,
+    });
+
+let time = 0;
+let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+// Floating 3D nodes
+const nodes = Array.from({ length: 18 }, () => ({
+  x: Math.random() * canvas.width,
+  y: Math.random() * canvas.height,
+  vx: (Math.random() - 0.5) * 0.5,
+  vy: (Math.random() - 0.5) * 0.5,
+  r: Math.random() * 4 + 2,
+}));
+
+function drawGrid() {
+  const cols = grid.cols, rows = grid.rows;
+  const total = (cols + 1) * (rows + 1);
+
+  // compute current positions
+  const px = [], py = [];
+  for (let i = 0; i < total; i++) {
+    const p = grid.pts[i];
+    const wave = Math.sin(time * p.speed * 200 + p.phase);
+    const mx = (mouse.x / canvas.width  - 0.5) * 20;
+    const my = (mouse.y / canvas.height - 0.5) * 20;
+    px[i] = p.bx + p.ox * wave + mx;
+    py[i] = p.by + p.oy * wave + my;
+  }
+
+  ctx.strokeStyle = 'rgba(0,240,255,0.07)';
+  ctx.lineWidth = 0.5;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const i  = r * (cols + 1) + c;
+      const ir = i + (cols + 1);   // row below
+      const ic = i + 1;            // col right
+
+      ctx.beginPath();
+      ctx.moveTo(px[i], py[i]);
+      ctx.lineTo(px[ic], py[ic]);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(px[i], py[i]);
+      ctx.lineTo(px[ir], py[ir]);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawNodes() {
+  nodes.forEach(n => {
+    n.x += n.vx; n.y += n.vy;
+    if (n.x < 0 || n.x > canvas.width)  n.vx *= -1;
+    if (n.y < 0 || n.y > canvas.height) n.vy *= -1;
+
+    // connect nearby nodes
+    nodes.forEach(m => {
+      const dx = n.x - m.x, dy = n.y - m.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 160) {
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(167,139,250,${0.15 * (1 - dist / 160)})`;
+        ctx.lineWidth = 0.8;
+        ctx.moveTo(n.x, n.y);
+        ctx.lineTo(m.x, m.y);
+        ctx.stroke();
+      }
+    });
+
+    const grd = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 3);
+    grd.addColorStop(0, 'rgba(167,139,250,0.9)');
+    grd.addColorStop(1, 'rgba(167,139,250,0)');
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+    ctx.fillStyle = grd;
+    ctx.fill();
+  });
+}
+
+function animate() {
+  time += 0.01;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // deep background gradient
+  const bg = ctx.createRadialGradient(
+    canvas.width * 0.5, canvas.height * 0.4, 0,
+    canvas.width * 0.5, canvas.height * 0.4, canvas.width * 0.8
+  );
+  bg.addColorStop(0, '#0d0d1f');
+  bg.addColorStop(1, '#05050d');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawGrid();
+  drawNodes();
+  particles.forEach(p => { p.update(); p.draw(); });
+
+  requestAnimationFrame(animate);
+}
+animate();
+
+// Initial progress
+document.getElementById('progress').style.width = (1 / TOTAL * 100) + '%';
+</script>
+</body>
+</html>
